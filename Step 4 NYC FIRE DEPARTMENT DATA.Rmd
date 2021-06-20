@@ -1,0 +1,170 @@
+---
+title: "Step 4 NYC FIRE DEPARTMENT DATA"
+author: "Disha Saha"
+date: "11/14/2019"
+output: word_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(purrr)
+library(cluster)
+library(factoextra) 
+library(readr)
+library(tidyr)
+library(splitstackshape)
+library(ggm)
+library(car)
+library(mlogit)
+library(caTools)
+library(class)
+
+#https://data.cityofnewyork.us/Public-Safety/Incidents-Responded-to-by-Fire-Companies/tm6d-hbzd
+
+Fire <- read.csv("/Users/dishasaha/Documents/Data Science Education/Statistics for Data Science/Incidents_Responded_to_by_Fire_Companies.csv",header = TRUE)
+#glimpse(Fire) #Observations: 2,518,758 Variables: 24
+
+```
+
+## Section 4 – Week 12 
+
+A. Introduction.
+
+New York City is by far one of the most populous cities in the United States, and therefore it is a place with a higher chance of exercising a fire related event or emergency related event. Like many other governmental agencies, the NYC Fire Department faces its own unique set of operational and financial challenges, and most importantly saving lives. My mission with this project is to gain a better insight on the operations of the NYC Fire/EMS department by analyzing its data from incident reports, which includes variables such as Incident type, zipcode, incident duration, borough, and so fourth. This analysis will be beneficial to the NYC Fire Department so that better resources can be allocated to improve the Fire Department’s response to incidents. 
+
+B. The problem statement I addressed.
+
+My problem statement that I addressed with this project was, is there a specific kind of incident that occurs more frequently in a given area? Is there an area that has the most incidents? Is there a distribution between month and incident duration? Is there a distribution among incident type and incident duration? Is there a distribution among zipcode and incident duration.
+
+C. How I addressed this problem statement.
+
+My method of addessing this problem statement started with by first cleaning up my dataset. I decided to use was Incidents Responded to by Fire Companies from the NYC open data portal. This Dataset is composed of 2.52 million rows, and 24 columns. The first step for me was to see if there any missing cases in my dataset. After I figured out that there is missing data in my dataset, I needed to see how many missing instances I had. I saw that there were 7589112 instances that were missing. Since I saw there were some missing data, I decided to figure out which columns I wanted to use from the 24 columns. I then picked 6 columns that seemed relevant to my analysis. I then constructed a new data fram with the selected columns. At this point I checked how many instances I now had that were missing, which showed to be 149 cases. I narrowed down to see which columns that these N/A was located, and saw that all the missing cases were in the Total incident duration. I then omitted the missing cases from my dataset.At the begining of the process,I had 24 variables, then I narrowed down to 9 variables by spliting date time variable, and thus ending 2518609 rows/observations. To further narrow down the data to address my probelm statement, I focused on the Brooklyn Borough due to it having the highest number of incdients from my preliminary data exploration. 
+
+D. Analysis.
+
+I wanted to investigate the different types of incidents that was part of the dataset. After looking at the table for the incident types, I narrowed down to the top 5 incidents by count. Afterwards I did a few graphs to see the Top 5 Incidents, then the Top 5 incidents by year, then the Top 5 Incident types occurence by Borough. After looking at the graphs I was able to conclude that Brooklyn had the over highest number of incidents, Rescue and EMS Incident types was the highest occurence overall, also saw that 2015 had the highest number of incidents, while 2018 showed to be half the size. I needed to investigate 2018 becuase it wasn't showing enough incidents. My first goal was to dig deeper into Brooklyn data since it had the highest number of incidents overall, and created a dataframe for Brooklyn. Then I created a barplot for Brooklyn incident type by year. There in the graph again I saw that 2015-2017 had simillar values but in 2018 the incidents drops significantly. Thefore, I decided to see if I had data for every month in 2018, and using the table function I was able to see that I only had data for only half the year in 2018. Therefore, I subseted my data again to omit 2018 values from my Brooklyn dataset. Further more I did some scatter plots to investigate distributions among the variables. Unfortunately, there wasn't any striking correlations that I could find from the plots.
+
+
+```{r , echo=TRUE, include=TRUE, warning=FALSE}
+glimpse(Fire) #Observations: 2,518,758 Variables: 24
+
+problems(Fire)
+any(is.na(Fire)) #came back as true
+sum(is.na(Fire)) #came back with 7589112 instances
+
+complete_fire <-na.omit(Fire)
+any(is.na(complete_fire))
+class(complete_fire)
+glimpse(complete_fire)
+
+names(Fire)
+
+Fire_col <- c("INCIDENT_TYPE_DESC", "INCIDENT_DATE_TIME", "TOTAL_INCIDENT_DURATION",
+              "ACTION_TAKEN1_DESC", "ZIP_CODE", "BOROUGH_DESC")
+
+Fire_sub <- Fire [,Fire_col]
+class(Fire_sub)
+glimpse(Fire_sub) #Observations: 2,518,758 Variables: 
+any(is.na(Fire_sub))
+sum(is.na(Fire_sub)) #decreased from original na value, now 149 missing cases
+colSums(is.na(Fire_sub)) #shows that only Total incident duration had all of the 149 missing cases
+Fire_clean <- na.omit(Fire_sub)
+class(Fire_clean)
+nrow(Fire_clean) #now left with 2518609 rows/observation
+head(Fire_clean)
+
+Fire_Split<- separate(data = Fire_clean, col = INCIDENT_DATE_TIME, into = c("DATE", "TIME"), sep = " ")
+head(Fire_Split)
+Fire_Split2<- separate(data = Fire_Split, col = DATE, into = c("MONTH", "DAY", "YEAR"), sep = "/")
+head(Fire_Split2)
+glimpse(Fire_Split2)
+```
+
+```{r , echo=TRUE, include=TRUE, warning=FALSE}
+Fire_Split2$INCIDENT_TYPE_DESC <- reorder(Fire_Split2$INCIDENT_TYPE_DESC, Fire_Split2$INCIDENT_TYPE_DESC, FUN = length)
+#I did a table function to see the totals of the incident types from smallest to largest frequency, I previously saw 815 diff types of incidents,  Rescue, EMS incident, other most incidents, however I am leaving that out from the report.
+#target the top five incidents
+target<- c("300 - Rescue, EMS incident, other", "651 - Smoke scare, odor of smoke", "353 - Removal of victim(s) from stalled elevator", "710 - Malicious, mischievous false call, other", "522 - Water or steam leak")
+topfive_highestincident <- subset(Fire_Split2, INCIDENT_TYPE_DESC %in% target)
+glimpse(topfive_highestincident)
+topfive<- droplevels(topfive_highestincident)
+class(topfive)
+table(topfive$INCIDENT_TYPE_DESC)
+glimpse(topfive)
+ggplot(topfive, aes(x=INCIDENT_TYPE_DESC)) + geom_bar(fill="dark blue") + labs(x= "Incident Types", y="Incidents", title = "Top 5 Incident types") + 
+  theme(axis.text.x = element_text(angle = 90, hjust =1)) #Per the graph incident type 300-Rescue, EMS incident, other had the highest occurence
+ggplot(topfive, aes(x=as.factor(YEAR))) + geom_bar(fill="dark blue") + labs(x= "YEAR", y="Incidents", title = "Top 5 Incident types occurence by Year")
+#2015 had the highest number of incident records, and 2018 had the least number of incidents
+ggplot(topfive, aes(x=BOROUGH_DESC)) + geom_bar(fill="dark blue") + labs(x= "Borough", y="Incidents", title = "Top 5 Incident types occurence by Borough")
+#Brooklyn had the highest incident records
+```
+
+```{r , echo=TRUE, include=TRUE, warning=FALSE}
+#going to dig deeper into Brooklyn due to it having the highest incidents
+Brooklyn <- filter(topfive, BOROUGH_DESC == "4 - Brooklyn")
+glimpse(Brooklyn)
+count_incidenttype <- table(Brooklyn$INCIDENT_TYPE_DESC, Brooklyn$YEAR)
+glimpse(count_incidenttype)
+barplot(count_incidenttype, main="Brooklyn incident type by year", xlab="Year", ylab = "Incidents", col= c("red","green","blue","orange","black"),beside = TRUE, las=2, cex.names = .7) 
+legend("topleft", rownames(count_incidenttype), fill = c("red","green","blue","orange","black"), cex = 0.25)
+#Interesting to see that Brooklyn also had the least number of incidents in 2018, and Incident type 300-Rescue, EMS incident, other was the largest overall
+#Years 2015-2017 have simillar values, but in 2018 it drops significantly 
+#Need to see if I am missing any data in 2018, going to see if I have data for every month of 2018
+
+Brooklyn_2018 <- subset.data.frame(Brooklyn, YEAR==2018, c(INCIDENT_TYPE_DESC, MONTH, DAY, YEAR, TOTAL_INCIDENT_DURATION,
+                                                          ACTION_TAKEN1_DESC, ZIP_CODE, BOROUGH_DESC))
+table(Brooklyn_2018$MONTH)
+#According to the table the data set only includes months January to June, therefore I am going to get rid of the data for 2018 going forward.
+target_year<- c(2013,2014,2015,2016,2017)
+Brooklyn_new<-subset(Brooklyn, YEAR %in% target_year)
+glimpse(Brooklyn_new) #Observations: 393,811 
+#since 2015,2016 and 2017 had simillar values for incidents I am going to drill down to those three
+```
+
+```{r , echo=TRUE, include=TRUE, warning=FALSE}
+target2015_2016_2017 <- c(2015,2016,2017)
+Brooklyn2015_2016_2017<- subset(Brooklyn_new, YEAR %in% target2015_2016_2017)
+
+monthdata <- Brooklyn2015_2016_2017 %>% group_by(MONTH, YEAR) %>% tally()
+ggplot(monthdata, aes(x=MONTH, y=n,color= YEAR, group=YEAR))+ geom_line()+geom_point()+labs(x= "Month", y="Incidents", title = "Incidents by Month") + 
+  theme(axis.text.x = element_text(angle = 90, hjust =1))
+#Based on the graph Incident records usually drop around April and November. Also during the middle of the year is when most incidents occur.
+
+zipdata <- subset(Brooklyn2015_2016_2017, !is.na(ZIP_CODE), c(INCIDENT_TYPE_DESC, MONTH, DAY, YEAR, TOTAL_INCIDENT_DURATION,
+                                                              ACTION_TAKEN1_DESC, ZIP_CODE, BOROUGH_DESC))
+ggplot(zipdata, aes(x=ZIP_CODE,color= YEAR, group=YEAR))+ geom_bar()+labs(x= "Zip Code", y="Incidents", title = "Incidents by Zip code") + 
+  theme(axis.text.x = element_text(angle = 90, hjust =1))
+#It makes sense to see that the zipcodes had the higher incidents in 2015 because 2015 had the highest levels of incidents overall, also I see an anomally for zipcode 9999. I will leave out 9999.
+
+Target_zip <- c(11201, 11203, 11204, 11205, 11206, 11207, 11208, 11209, 11210, 11211,11212, 11213, 11214, 11215, 11216, 11217, 11218, 11219, 11220, 11221, 11222, 11223, 11224, 11225, 11226, 11228, 11229, 11230, 11231, 11232, 11233, 11234, 11235, 11236,11237, 11238, 11239, 11251)
+Brooklyn_model <- subset(Brooklyn_new, ZIP_CODE %in% Target_zip)
+Brooklynmodel<- droplevels(Brooklyn_model)
+
+Brookmodel<- subset(Brooklyn_model, !is.na(Brooklynmodel$INCIDENT_TYPE_DESC), c(INCIDENT_TYPE_DESC, MONTH, DAY, YEAR, TOTAL_INCIDENT_DURATION,
+                                                                             ACTION_TAKEN1_DESC, ZIP_CODE, BOROUGH_DESC))
+glimpse(Brookmodel)
+ggplot(data=Brookmodel, aes(x=INCIDENT_TYPE_DESC, y=TOTAL_INCIDENT_DURATION)) + geom_point() + geom_smooth(method="lm",se=FALSE)+labs(x= "Incident Type", y="Incident Duration", title = "Incidents type versus Duration")+ theme(axis.text.x = element_text(angle = 90, hjust =1))
+ggplot(data=Brookmodel, aes(x=MONTH, y=TOTAL_INCIDENT_DURATION)) + geom_point() + geom_smooth(method="lm")+labs(x= "Incident Type", y="Incident Duration", title = "Incidents by Month versus Duration")+ theme(axis.text.x = element_text(angle = 90, hjust =1))
+ggplot(data=Brookmodel, aes(x=ZIP_CODE, y=TOTAL_INCIDENT_DURATION)) + geom_point() + geom_smooth(method="lm")+labs(x= "Incident Zip Code", y="Incident Duration", title = "Incidents by Zip Code versus Duration")+ theme(axis.text.x = element_text(angle = 90, hjust =1))
+```
+
+E. Implications.
+
+ I can conclude that the NYC Fire Department need to have more resources in the Brooklyn Borough with it having the higest number of incidents. I can also conclude that EMS rescue teams need to be more readily avaible since its the most occuring incident among all Boroughs. I wanted to dig deeper into figuring out when incidents occured the most in a given month throughout the year. After creating the line graph I was able to see that in the months of April and November the incident counts went down for years 2015-2017. I also saw that the summer months saw a rise, and also saw a rise in December, perhaps could be due to the holiday season. From this finding I would suggest that the NYC Fire department should try to increase their resources or realloate their resources to handle the increasing number of incidents during the summer months. 
+
+
+F. Limitation.
+
+I really wanted to see if I could find any correlations, but unfortunately I wasn't able to. I tried to do the cor.test() function by deriving an incident count variable and then checking to see if it correlated with the time of day, but I kept getting error messages saying that the standard deviation was zero. I also attempted to create a KNN model but I kept getting errors.  
+
+
+E. Concluding Remarks. 
+
+I feel as though I was able to create some good illustrations of the Incidents. I think this provided some insights that could be beneficial to the NYC Fire Department to allocate their resources specially during certain months of the year, and an certain Boroughs. Since I had some columns in my dataset that weren't numeric, I wasn't able to perform multiple regression analysis, and I expericed having trouble when creating correlations. In future, I would choose other datasets to compliment my findings of the NYC Fire Deparmtent to gain a better holistic insight on its operations. 
+
+
+
+
